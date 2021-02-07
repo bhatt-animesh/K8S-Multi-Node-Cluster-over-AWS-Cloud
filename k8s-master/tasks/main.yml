@@ -1,0 +1,76 @@
+---
+# tasks file for k8s-master
+- name: "Docker Configuration"
+  package:
+          name: docker
+          state: present
+
+- name: "Starting Service of Docker"
+  service:
+          name: docker
+          state: started
+          enabled: yes
+
+- name: "Setting Up Repo For Kubernetes"
+  yum_repository:
+          name: kubernetes
+          baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+          description: kubernetes repo
+          enabled: 1
+          gpgcheck: 1
+          repo_gpgcheck: 1
+          gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+- name: "Installing Software For Kubernetes"
+  package:
+          name: ['kubeadm', 'kubelet','kubectl' ]
+          state: present
+
+- name: "Starting Service Of Kubelet"
+  service:
+          name: kubelet
+          state: started
+          enabled: yes
+
+- name: "Docker Images Pull"
+  command: "kubeadm config images pull"
+
+- name: "Changing cgroup Driver"
+  copy: 
+     src: /ws_19/daemon.json
+     dest: /etc/docker
+
+- name: "Restarting Docker Service"
+  service: 
+      name: docker
+      state: restarted
+
+- name: "Installing iproute Software"
+  package:
+          name: iproute-tc
+          state: present
+
+- name: "Enabling iptables Rule"
+  shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+
+- name: "Initializing Master"
+  command: "kubeadm init --pod-network-cidr=10.240.0.0/16 --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem"
+
+- name: "Setting Master as Clinet"
+  command: mkdir -p $HOME/.kube
+- name: "Setting Master as Client..."
+  command: cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+- name: "Wait Your Master is Almost Ready"  
+  shell: sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+- name: "Getting Token For Client"
+  command: kubeadm token create --print-join-command
+  register: token
+
+- name: "Copying Token To Local System"
+  local_action: copy content={{token.stdout}} dest={{tok}}
+
+- name: "Setting Up cni"
+  command: kubectl apply  -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+
