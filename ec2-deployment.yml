@@ -7,7 +7,7 @@
       ec2:
         aws_access_key: "{{ aws_access_key }}"
         aws_secret_key: "{{ aws_secret_key }}"
-        key_name: redhate_work
+        key_name: redhat_work
         instance_type: t2.micro
         image: ami-08e0ca9924195beba
         wait: yes
